@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block titulo %}{{ paciente.nome }}{% endblock %}
+{% block conteudo %}
+<div class="cabecalho">
+  <div><h1>{{ paciente.nome }}</h1><p>CPF {{ paciente.cpf_formatado }}</p></div>
+  <div class="acoes">
+    <a class="botao botao--primario" href="{% url 'consulta_nova' %}?paciente={{ paciente.pk }}">Agendar consulta</a>
+    <a class="botao" href="{% url 'paciente_editar' paciente.pk %}">Editar</a>
+    {% if eh_admin %}<a class="botao botao--perigo" href="{% url 'paciente_excluir' paciente.pk %}">Excluir</a>{% endif %}
+  </div>
+</div>
+
+<div class="painel">
+  <dl class="dados">
+    <dt>Telefone</dt><dd>{{ paciente.telefone }}</dd>
+    <dt>E-mail</dt><dd>{{ paciente.email|default:"Não informado" }}</dd>
+    <dt>Nascimento</dt><dd>{{ paciente.data_nascimento|date:"d/m/Y"|default:"Não informado" }}</dd>
+  </dl>
+</div>
+
+<div class="grade-2">
+  <section>
+    <h2>Próximas consultas</h2>
+    {% include "agenda/_tabela_consultas_paciente.html" with consultas=proximas vazio="Nenhuma consulta futura." %}
+  </section>
+  <section>
+    <h2>Histórico</h2>
+    {% include "agenda/_tabela_consultas_paciente.html" with consultas=historico vazio="Nenhuma consulta anterior." %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block titulo %}Excluir{% endblock %}
+{% block conteudo %}
+<div class="painel formulario">
+  <h1>Excluir {{ object|stringformat:"s" }}?</h1>
+  <p>Essa ação não pode ser desfeita.</p>
+  <form method="post" class="acoes">
+    {% csrf_token %}
+    <button type="submit" class="botao botao--perigo">Excluir</button>
+    <a class="botao" href="javascript:history.back()">Voltar</a>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,44 @@
+{% load static %}<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block titulo %}Agenda{% endblock %} | Agenda de Consultas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+  <header class="topo">
+    <div class="topo__interno">
+      <a href="{% url 'agenda_dia' %}" class="marca">Agenda de Consultas</a>
+      {% if user.is_authenticated %}
+      <nav class="menu" aria-label="Navegação principal">
+        {% with rota=request.resolver_match.url_name %}
+        <a href="{% url 'dashboard' %}" {% if 'dashboard' in rota %}aria-current="page"{% endif %}>Dashboard</a>
+        <a href="{% url 'agenda_dia' %}" {% if rota == 'agenda_dia' %}aria-current="page"{% endif %}>Agenda do dia</a>
+        <a href="{% url 'consulta_lista' %}" {% if 'consulta' in rota %}aria-current="page"{% endif %}>Consultas</a>
+        <a href="{% url 'paciente_lista' %}" {% if 'paciente' in rota %}aria-current="page"{% endif %}>Pacientes</a>
+        <a href="{% url 'profissional_lista' %}" {% if 'profissional' in rota or 'disponibilidade' in rota %}aria-current="page"{% endif %}>Profissionais</a>
+        {% endwith %}
+      </nav>
+      <a href="{% url 'consulta_nova' %}" class="botao botao--primario">Agendar consulta</a>
+      <div class="usuario">
+        <span class="usuario__nome">{{ user.get_full_name|default:user.username }}{% if perfil %}<small>{{ perfil.get_papel_display }}</small>{% endif %}</span>
+        <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="usuario__sair">Sair</button></form>
+      </div>
+      {% endif %}
+    </div>
+  </header>
+
+  <main class="conteudo">
+    {% if messages %}
+      <div class="avisos" role="status">
+        {% for m in messages %}<p class="aviso aviso--{{ m.tags }}">{{ m }}</p>{% endfor %}
+      </div>
+    {% endif %}
+    {% block conteudo %}{% endblock %}
+  </main>
+</body>
+</html>

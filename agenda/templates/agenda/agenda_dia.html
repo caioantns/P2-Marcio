@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load l10n %}
+{% block titulo %}Agenda de {{ dia|date:"d/m" }}{% endblock %}
+{% block conteudo %}
+<div class="cabecalho">
+  <div>
+    <h1>{% if dia == hoje %}Hoje, {% endif %}{{ dia|date:"l, j \d\e F" }}</h1>
+    <p class="resumo">
+      {% if resumo.total %}
+        {{ resumo.total }} consulta{{ resumo.total|pluralize }} no dia{% if resumo.realizadas %}, {{ resumo.realizadas }} realizada{{ resumo.realizadas|pluralize }}{% endif %}{% if resumo.canceladas %}, {{ resumo.canceladas }} cancelada{{ resumo.canceladas|pluralize }}{% endif %}.
+      {% else %}
+        Nenhuma consulta marcada para este dia.
+      {% endif %}
+    </p>
+  </div>
+  <div class="dia-nav">
+    <a class="botao" href="?data={{ anterior|date:'Y-m-d' }}" aria-label="Dia anterior">‹ Anterior</a>
+    {% if dia != hoje %}<a class="botao" href="{% url 'agenda_dia' %}">Hoje</a>{% endif %}
+    <a class="botao" href="?data={{ proximo|date:'Y-m-d' }}" aria-label="Próximo dia">Próximo ›</a>
+    <form method="get">
+      <input type="date" aria-label="Ir para a data" name="data" value="{{ dia|date:'Y-m-d' }}" onchange="this.form.submit()">
+    </form>
+  </div>
+</div>
+
+{% if colunas %}
+  <div class="agenda">
+    <div class="agenda__canto"></div>
+    <div class="agenda__nomes">
+      {% for col in colunas %}
+        <div class="agenda__nome">
+          <a href="{{ col.profissional.get_absolute_url }}?data={{ dia|date:'Y-m-d' }}">{{ col.profissional.nome }}</a>
+          <span>{{ col.profissional.especialidade }}</span>
+        </div>
+      {% endfor %}
+    </div>
+
+    {% localize off %}
+    <div class="agenda__regua" style="height: {{ altura_px }}px">
+      {% for h in horas %}<span style="top: {{ h.topo }}%">{{ h.rotulo }}</span>{% endfor %}
+    </div>
+    <div class="agenda__colunas" style="height: {{ altura_px }}px">
+      <div class="agenda__linhas" aria-hidden="true">
+        {% for h in horas %}<i style="top: {{ h.topo }}%"></i>{% endfor %}
+      </div>
+      {% for col in colunas %}
+        <div class="agenda__coluna">
+          {% for f in col.faixas %}<div class="faixa" style="top: {{ f.topo }}%; height: {{ f.altura }}%"></div>{% endfor %}
+          {% for item in col.consultas %}
+            {% with c=item.consulta %}
+            <a href="{{ c.get_absolute_url }}" class="bloco bloco--{{ c.status }}" style="top: {{ item.topo }}%; height: {{ item.altura }}%"
+               title="{{ c.paciente.nome }} · {{ c.hora_inicio|time:'H:i' }}–{{ c.hora_fim|time:'H:i' }} · {{ c.get_status_display }}">
+              <strong>{{ c.paciente.nome }}</strong>
+              <span class="hora">{{ c.hora_inicio|time:"H:i" }}–{{ c.hora_fim|time:"H:i" }}</span>
+            </a>
+            {% endwith %}
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    {% endlocalize %}
+  </div>
+  <div class="legenda">
+    <span class="l-livre">Horário de atendimento</span>
+    <span class="l-agendada">Agendada</span>
+    <span class="l-realizada">Realizada</span>
+    <span class="l-cancelada">Cancelada</span>
+  </div>
+{% else %}
+  <div class="painel vazio">
+    <p>Nenhum profissional atende neste dia da semana.</p>
+    <a class="botao botao--primario" href="{% url 'profissional_lista' %}">Ver horários dos profissionais</a>
+  </div>
+{% endif %}
+{% endblock %}

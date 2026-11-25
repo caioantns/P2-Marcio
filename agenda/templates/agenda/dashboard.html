@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load static l10n %}
+{% block titulo %}Dashboard{% endblock %}
+{% block conteudo %}
+<div class="cabecalho">
+  <div>
+    <h1>Dashboard</h1>
+    <p>
+      {{ perfil.organizacao }} ·
+      {% if periodo.inicio or periodo.fim %}
+        {% if periodo.inicio %}de {{ form.cleaned_data.inicio|date:"d/m/Y" }}{% endif %}
+        {% if periodo.fim %}até {{ form.cleaned_data.fim|date:"d/m/Y" }}{% endif %}
+      {% else %}todo o período{% endif %}
+    </p>
+  </div>
+  <div class="acoes">
+    <a class="botao" href="{% url 'api_dashboard' %}{% if parametros %}?{{ parametros }}{% endif %}">Ver em JSON (API)</a>
+    {% if eh_admin %}
+      <a class="botao botao--primario" href="{% url 'dashboard_csv' %}{% if parametros %}?{{ parametros }}{% endif %}">Exportar CSV</a>
+    {% endif %}
+  </div>
+</div>
+
+{# ---------- Filtro por período (PeriodoForm valida as datas da URL) ---------- #}
+<form method="get" class="painel periodo" aria-label="Filtrar período">
+  {% if form.non_field_errors or form.errors %}
+    <div class="erros-gerais" role="alert">
+      <strong>Filtro ignorado:</strong>
+      <ul>
+        {% for erro in form.non_field_errors %}<li>{{ erro }}</li>{% endfor %}
+        {% for campo in form %}{% for erro in campo.errors %}<li>{{ campo.label }}: {{ erro }}</li>{% endfor %}{% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+  <div class="periodo__campos">
+    {% for campo in form %}
+      <label class="periodo__campo">
+        <span>{{ campo.label }}</span>
+        {{ campo }}
+      </label>
+    {% endfor %}
+    <button class="botao botao--primario" type="submit">Aplicar</button>
+  </div>
+  <nav class="atalhos" aria-label="Períodos prontos">
+    {% for a in atalhos %}
+      <a href="?{{ a.query }}" {% if a.ativo %}aria-current="true"{% endif %}>{{ a.rotulo }}</a>
+    {% endfor %}
+  </nav>
+</form>
+
+{# ---------- 1. KPIs (aggregate) ---------- #}
+<section class="kpis" aria-label="Indicadores">
+  <div class="kpi">
+    <small>Consultas no período</small>
+    <strong class="numero">{{ kpis.total }}</strong>
+    <span>todas, inclusive canceladas</span>
+  </div>
+  <div class="kpi">
+    <small><i class="ponto ponto--realizada"></i>Realizadas</small>
+    <strong class="numero">{{ kpis.realizadas }}</strong>
+    <span>atendimentos concluídos</span>
+  </div>
+  <div class="kpi">
+    <small><i class="ponto ponto--agendada"></i>Agendadas</small>
+    <strong class="numero">{{ kpis.agendadas }}</strong>
+    <span>ainda por acontecer ou sem baixa</span>
+  </div>
+  <div class="kpi">
+    <small><i class="ponto ponto--cancelada"></i>Canceladas</small>
+    <strong class="numero">{{ kpis.canceladas }}</strong>
+    <span>{{ kpis.taxa_cancelamento|floatformat:1 }}% do total</span>
+  </div>
+  <div class="kpi">
+    <small>Pacientes atendidos</small>
+    <strong class="numero">{{ kpis.pacientes }}</strong>
+    <span>pacientes diferentes</span>
+  </div>
+</section>
+
+{# ---------- 3. Série no tempo (só administrador) ---------- #}
+{% if mostra_series %}
+<section class="painel">
+  <div class="painel__titulo">
+    <div>
+      <h2>Consultas {% if periodo.agrupar == "dia" %}por dia{% elif periodo.agrupar == "semana" %}por semana{% else %}por mês{% endif %}</h2>
+      <p class="ajuda">Barras empilhadas por status. Soma do gráfico: <strong class="numero">{{ soma_serie }}</strong> consulta{{ soma_serie|pluralize }}, o mesmo número do primeiro cartão.</p>
+    </div>
+    <div class="legenda legenda--grafico" aria-hidden="true">
+      <span class="l-g-realizada">Realizadas</span>
+      <span class="l-g-agendada">Agendadas</span>
+      <span class="l-g-cancelada">Canceladas</span>
+    </div>
+  </div>
+  {% if serie %}
+    <div class="grafico grafico--alto"><canvas id="grafico-serie" role="img" aria-label="Gráfico de consultas por período, empilhado por status"></canvas></div>
+    <details class="tabela-dados">
+      <summary>Ver os números em tabela</summary>
+      <div class="tabela-rolagem">
+        <table>
+          <thead><tr><th>Período</th><th class="num">Realizadas</th><th class="num">Agendadas</th><th class="num">Canceladas</th><th class="num">Total</th></tr></thead>
+          <tbody>
+            {% for p in serie %}
+              <tr><td>{{ p.rotulo }}</td><td class="num">{{ p.realizadas }}</td><td class="num">{{ p.agendadas }}</td><td class="num">{{ p.canceladas }}</td><td class="num"><strong>{{ p.total }}</strong></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  {% else %}
+    <p class="vazio">Sem consultas no período.</p>
+  {% endif %}
+</section>
+{% else %}
+<p class="aviso">Gráficos por período e exportação ficam disponíveis para administradores.</p>
+{% endif %}
+
+<div class="grade-2">
+  {# ---------- 2. Ranking (values + annotate + order_by) ---------- #}
+  <section class="painel">
+    <div class="painel__titulo"><h2>Profissionais que mais atendem</h2></div>
+    <div class="tabela-rolagem tabela-rolagem--limpa">
+      <table class="ranking">
+        <thead><tr><th>Profissional</th><th class="num">Realizadas</th><th class="num">Canc.</th></tr></thead>
+        <tbody>
+          {% for item in ranking %}
+            <tr>
+              <td>
+                <a href="{% url 'profissional_detalhe' item.profissional_id %}">{{ item.profissional__nome }}</a>
+                <span class="ranking__esp">{{ item.profissional__especialidade }}</span>
+                <span class="ranking__barra" aria-hidden="true"><i style="width: {% localize off %}{{ item.barra }}{% endlocalize %}%"></i></span>
+              </td>
+              <td class="num"><strong>{{ item.realizadas }}</strong> <span class="ajuda">de {{ item.total }}</span></td>
+              <td class="num">{{ item.taxa_cancelamento|floatformat:0 }}%</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="3" class="vazio">Sem dados no período.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {# ---------- 4. Distribuição por dia da semana ---------- #}
+  <section class="painel">
+    <div class="painel__titulo">
+      <div>
+        <h2>Movimento por dia da semana</h2>
+        <p class="ajuda">Consultas realizadas e agendadas (sem as canceladas).</p>
+      </div>
+    </div>
+    {% if kpis.total %}
+      <div class="grafico"><canvas id="grafico-dias" role="img" aria-label="Gráfico de consultas por dia da semana"></canvas></div>
+    {% else %}
+      <p class="vazio">Sem dados no período.</p>
+    {% endif %}
+  </section>
+</div>
+
+{{ dados_graficos|json_script:"dados-dashboard" }}
+<script src="{% static 'js/chart.umd.js' %}"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}

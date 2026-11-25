@@ -1,0 +1,16 @@
+<div class="tabela-rolagem">
+  <table>
+    <thead><tr><th>Data</th><th>Profissional</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for consulta in consultas %}
+        <tr>
+          <td class="numero"><a href="{{ consulta.get_absolute_url }}">{{ consulta.data|date:"d/m/Y" }} {{ consulta.hora_inicio|time:"H:i" }}</a></td>
+          <td>{{ consulta.profissional.nome }}</td>
+          <td>{% include "agenda/_status.html" %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="3" class="vazio">{{ vazio }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
